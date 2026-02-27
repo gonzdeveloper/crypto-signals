@@ -406,6 +406,7 @@ setTimeout(() => {
     console.log('🔔 Monitoreo de señales iniciado (15m, 1h, 4h)');
 }, 5000);
 
-server.listen(PORT, () => {
-    console.log(`Servidor en http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+server.listen(PORT, HOST, () => {
+    console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
 });
