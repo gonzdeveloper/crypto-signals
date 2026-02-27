@@ -27,7 +27,7 @@ let telegramChatId = initialConfig.telegramChatId;
 let lastSignals = initialConfig.lastSignals || {};
 
 const BINANCE_API = process.env.BINANCE_API || 'https://api.binance.com';
-const BINANCE_FALLBACK = 'https://api.binanceus.com';
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
 const symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
@@ -197,25 +197,34 @@ function fetchUrl(url, retries = 2) {
     });
 }
 
+const symbolToCoinId = {
+    'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin',
+    'SOLUSDT': 'solana', 'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano',
+    'DOGEUSDT': 'dogecoin', 'DOTUSDT': 'polkadot', 'AVAXUSDT': 'avalanche-2',
+    'MATICUSDT': 'matic-network', 'LINKUSDT': 'chainlink', 'LTCUSDT': 'litecoin',
+    'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
+};
+
 async function getPrices() {
-    const prices = {};
-    const topSymbols = symbols.slice(0, 20);
-    for (const symbol of topSymbols) {
-        try {
-            const data = await fetchUrl(`${BINANCE_API}/api/v3/ticker/24hr?symbol=${symbol}`);
-            if (data && data.lastPrice) {
+    try {
+        const coinIds = Object.values(symbolToCoinId).join(',');
+        const data = await fetchUrl(`${COINGECKO_API}/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`);
+        const prices = {};
+        for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
+            if (data[coinId]) {
                 prices[symbol] = {
-                    price: parseFloat(data.lastPrice),
-                    change: parseFloat(data.priceChangePercent),
-                    high: parseFloat(data.highPrice),
-                    low: parseFloat(data.lowPrice)
+                    price: data[coinId].usd,
+                    change: data[coinId].usd_24h_change || 0,
+                    high: data[coinId].usd * 1.01,
+                    low: data[coinId].usd * 0.99
                 };
             }
-        } catch(e) { 
-            // Silently skip failed symbols
         }
+        return prices;
+    } catch(e) {
+        console.log('CoinGecko error:', e.message);
+        return {};
     }
-    return prices;
 }
 
 async function getKlines(symbol, interval, limit) {
