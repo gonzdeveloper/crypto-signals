@@ -28,6 +28,7 @@ let lastSignals = initialConfig.lastSignals || {};
 
 const BINANCE_API = process.env.BINANCE_API || 'https://api.binance.com';
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+const CRYPTOCOMPARE_API = 'https://min-api.cryptocompare.com/data/v2';
 
 const symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
@@ -206,38 +207,51 @@ const symbolToCoinId = {
 };
 
 async function getPrices() {
+    const priceSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'MATIC', 'LINK', 'LTC', 'UNI', 'ATOM', 'ETC'];
     try {
-        const coinIds = Object.values(symbolToCoinId).join(',');
-        const data = await fetchUrl(`${COINGECKO_API}/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`);
+        const fsyms = priceSymbols.join(',');
+        const data = await fetchUrl(`${CRYPTOCOMPARE_API}/pricemulti?fsyms=${fsyms}&tsyms=USD`);
         const prices = {};
-        for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
-            if (data[coinId]) {
+        const symbolMap = { 'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'XRP': 'XRPUSDT', 'ADA': 'ADAUSDT', 'DOGE': 'DOGEUSDT', 'DOT': 'DOTUSDT', 'AVAX': 'AVAXUSDT', 'MATIC': 'MATICUSDT', 'LINK': 'LINKUSDT', 'LTC': 'LTCUSDT', 'UNI': 'UNIUSDT', 'ATOM': 'ATOMUSDT', 'ETC': 'ETCUSDT' };
+        for (const [sym, usdData] of Object.entries(data)) {
+            if (usdData.USD) {
+                const symbol = symbolMap[sym];
                 prices[symbol] = {
-                    price: data[coinId].usd,
-                    change: data[coinId].usd_24h_change || 0,
-                    high: data[coinId].usd * 1.01,
-                    low: data[coinId].usd * 0.99
+                    price: usdData.USD.PRICE,
+                    change: usdData.USD.CHANGE24HOUR || 0,
+                    high: usdData.USD.HIGH24HOUR || usdData.USD.PRICE * 1.01,
+                    low: usdData.USD.LOW24HOUR || usdData.USD.PRICE * 0.99
                 };
             }
         }
         return prices;
     } catch(e) {
-        console.log('CoinGecko error:', e.message);
+        console.log('CryptoCompare error:', e.message);
         return {};
     }
 }
 
+const symbolToCC = { 'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'BNBUSDT': 'BNB', 'SOLUSDT': 'SOL', 'XRPUSDT': 'XRP', 'ADAUSDT': 'ADA', 'DOGEUSDT': 'DOGE', 'DOTUSDT': 'DOT', 'AVAXUSDT': 'AVAX', 'MATICUSDT': 'MATIC' };
+const intervalMap = { '1m': '1', '5m': '5', '15m': '15', '30m': '30', '1h': '60', '4h': '240', '1d': 'D', '1w': 'W' };
+
 async function getKlines(symbol, interval, limit) {
     try {
-        const data = await fetchUrl(`${BINANCE_API}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-        return data.map(k => ({
-            time: Math.floor(k[0] / 1000),
-            open: parseFloat(k[1]),
-            high: parseFloat(k[2]),
-            low: parseFloat(k[3]),
-            close: parseFloat(k[4])
-        }));
+        const ccSymbol = symbolToCC[symbol];
+        if (!ccSymbol) return [];
+        const ccInterval = intervalMap[interval] || '60';
+        const data = await fetchUrl(`${CRYPTOCOMPARE_API}/histohour?fsym=${ccSymbol}&tsym=USD&limit=${limit}&aggregate=1`);
+        if (data && data.Data && data.Data.Data) {
+            return data.Data.Data.map(k => ({
+                time: k.time,
+                open: k.open,
+                high: k.high,
+                low: k.low,
+                close: k.close
+            }));
+        }
+        return [];
     } catch(e) {
+        console.log('Klines error:', e.message);
         return [];
     }
 }
