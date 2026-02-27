@@ -342,7 +342,8 @@ async function checkSignals() {
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 
 const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const baseUrl = `http://${req.headers.host}`;
+    const url = new URL(req.url, baseUrl);
     
     if (url.pathname === '/api/prices') {
         try {
