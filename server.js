@@ -27,6 +27,7 @@ let telegramChatId = initialConfig.telegramChatId;
 let lastSignals = initialConfig.lastSignals || {};
 
 const BINANCE_API = 'https://api.binance.com';
+const BINANCE_FALLBACK = 'https://testnet.binance.vision';
 
 const symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
@@ -195,7 +196,8 @@ function httpsGet(url) {
 
 async function getPrices() {
     const prices = {};
-    for (const symbol of symbols) {
+    const topSymbols = symbols.slice(0, 20);
+    for (const symbol of topSymbols) {
         try {
             const data = await httpsGet(`${BINANCE_API}/api/v3/ticker/24hr?symbol=${symbol}`);
             if (data && data.lastPrice) {
