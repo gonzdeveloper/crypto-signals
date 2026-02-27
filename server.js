@@ -28,7 +28,7 @@ let lastSignals = initialConfig.lastSignals || {};
 
 const BINANCE_API = process.env.BINANCE_API || 'https://api.binance.com';
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
-const CRYPTOCOMPARE_API = 'https://min-api.cryptocompare.com/data/v2';
+const CRYPTOCOMPARE_API = 'https://min-api.cryptocompare.com/data';
 
 const symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
