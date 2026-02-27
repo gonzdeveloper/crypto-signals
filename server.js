@@ -171,14 +171,25 @@ const cryptoNames = {
 
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
-        const req = https.get(url, { rejectUnauthorized: false }, (res) => {
+        const req = https.get(url, { rejectUnauthorized: false, timeout: 10000 }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try { resolve(JSON.parse(data)); }
-                catch(e) { reject(e); }
+                catch(e) { 
+                    console.log('Parse error:', e.message, 'Data:', data.substring(0, 100));
+                    reject(e); 
+                }
             });
-        }).on('error', reject);
+        }).on('error', (err) => {
+            console.log('HTTPS error:', err.message);
+            reject(err);
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            console.log('Request timeout');
+            reject(new Error('Request timeout'));
+        });
     });
 }
 
