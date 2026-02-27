@@ -6,9 +6,25 @@ const path = require('path');
 const PORT = 3000;
 
 const TELEGRAM_BOT_TOKEN = '8662764953:AAGPF6_1av3rdWNQIn32k9raNsWdHi36sdA';
-let telegramChatId = null;
 
-let lastSignals = {};
+const configFile = path.join(__dirname, 'config.json');
+function loadConfig() {
+    try {
+        if (fs.existsSync(configFile)) {
+            return JSON.parse(fs.readFileSync(configFile, 'utf8'));
+        }
+    } catch(e) {}
+    return { telegramChatId: null, lastSignals: {} };
+}
+function saveConfig(config) {
+    try {
+        fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
+    } catch(e) {}
+}
+
+const initialConfig = loadConfig();
+let telegramChatId = initialConfig.telegramChatId;
+let lastSignals = initialConfig.lastSignals || {};
 
 const BINANCE_API = 'https://api.binance.com';
 
@@ -356,6 +372,7 @@ const server = http.createServer(async (req, res) => {
         const chatId = url.searchParams.get('chatId');
         if (chatId) {
             telegramChatId = chatId;
+            saveConfig({ telegramChatId, lastSignals });
             console.log('✅ Chat ID de Telegram configurado:', chatId);
             sendTelegramMessage('✅ ¡Bienvenido! Recibirás notificaciones de trading cuando haya señales en 15m, 1h o 4h.');
             res.writeHead(200, { 'Content-Type': 'application/json' });
