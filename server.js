@@ -26,8 +26,8 @@ const initialConfig = loadConfig();
 let telegramChatId = initialConfig.telegramChatId;
 let lastSignals = initialConfig.lastSignals || {};
 
-const BINANCE_API = 'https://api.binance.com';
-const BINANCE_FALLBACK = 'https://testnet.binance.vision';
+const BINANCE_API = process.env.BINANCE_API || 'https://api.binance.com';
+const BINANCE_FALLBACK = 'https://api.binanceus.com';
 
 const symbols = [
     'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
@@ -170,9 +170,12 @@ const cryptoNames = {
     'MASKUSDT': { name: 'Mask Network', short: 'MASK' }
 };
 
-function httpsGet(url) {
+function fetchUrl(url, retries = 2) {
     return new Promise((resolve, reject) => {
-        const req = https.get(url, { rejectUnauthorized: false, timeout: 10000 }, (res) => {
+        const isHttps = url.startsWith('https://');
+        const lib = isHttps ? https : http;
+        const opts = isHttps ? { rejectUnauthorized: false, timeout: 15000 } : { timeout: 15000 };
+        const req = lib.get(url, opts, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
@@ -199,7 +202,7 @@ async function getPrices() {
     const topSymbols = symbols.slice(0, 20);
     for (const symbol of topSymbols) {
         try {
-            const data = await httpsGet(`${BINANCE_API}/api/v3/ticker/24hr?symbol=${symbol}`);
+            const data = await fetchUrl(`${BINANCE_API}/api/v3/ticker/24hr?symbol=${symbol}`);
             if (data && data.lastPrice) {
                 prices[symbol] = {
                     price: parseFloat(data.lastPrice),
@@ -217,7 +220,7 @@ async function getPrices() {
 
 async function getKlines(symbol, interval, limit) {
     try {
-        const data = await httpsGet(`${BINANCE_API}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+        const data = await fetchUrl(`${BINANCE_API}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
         return data.map(k => ({
             time: Math.floor(k[0] / 1000),
             open: parseFloat(k[1]),
