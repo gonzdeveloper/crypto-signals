@@ -70,7 +70,7 @@ const cryptoNames = {
     'DOGEUSDT': { name: 'Dogecoin', short: 'DOGE' },
     'DOTUSDT': { name: 'Polkadot', short: 'DOT' },
     'AVAXUSDT': { name: 'Avalanche', short: 'AVAX' },
-    'MATICUSDT': { name: 'Polygon', short: 'MATIC' },
+    'POLUSDT': { name: 'Polygon', short: 'POL' },
     'LINKUSDT': { name: 'Chainlink', short: 'LINK' },
     'LTCUSDT': { name: 'Litecoin', short: 'LTC' },
     'UNIUSDT': { name: 'Uniswap', short: 'UNI' },
@@ -206,8 +206,6 @@ const symbolToCoinId = {
     'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
 };
 
-const COINGECKO_API = 'https://api.coingecko.com/api/v3';
-
 const mockPrices = {
     'BTCUSDT': { price: 67432.50, change: 2.34, high: 68200, low: 66100 },
     'ETHUSDT': { price: 3521.80, change: 1.87, high: 3580, low: 3450 },
@@ -227,15 +225,38 @@ const mockPrices = {
 };
 
 async function getPrices() {
-    const coinIdMap = {
-        'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin',
-        'SOLUSDT': 'solana', 'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano',
-        'DOGEUSDT': 'dogecoin', 'DOTUSDT': 'polkadot', 'AVAXUSDT': 'avalanche-2',
-        'MATICUSDT': 'matic-network', 'LINKUSDT': 'chainlink', 'LTCUSDT': 'litecoin',
-        'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
-    };
+    const topSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'DOTUSDT', 'AVAXUSDT', 'POLUSDT', 'LINKUSDT', 'LTCUSDT', 'UNIUSDT', 'ATOMUSDT', 'ETCUSDT'];
     
     try {
+        const data = await fetchUrl(`${BINANCE_API}/api/v3/ticker/24hr`);
+        if (Array.isArray(data)) {
+            const prices = {};
+            const symbolSet = new Set(topSymbols);
+            data.forEach(d => {
+                if (symbolSet.has(d.symbol)) {
+                    prices[d.symbol] = {
+                        price: parseFloat(d.lastPrice),
+                        change: parseFloat(d.priceChangePercent),
+                        high: parseFloat(d.highPrice),
+                        low: parseFloat(d.lowPrice)
+                    };
+                }
+            });
+            if (Object.keys(prices).length > 0) return prices;
+        }
+    } catch(e) {
+        console.log('Binance prices error:', e.message);
+    }
+    
+    try {
+        const coinIdMap = {
+            'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin',
+            'SOLUSDT': 'solana', 'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano',
+            'DOGEUSDT': 'dogecoin', 'DOTUSDT': 'polkadot', 'AVAXUSDT': 'avalanche-2',
+            'MATICUSDT': 'matic-network', 'LINKUSDT': 'chainlink', 'LTCUSDT': 'litecoin',
+            'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
+        };
+        
         const coinIds = Object.values(coinIdMap).join(',');
         const data = await fetchUrl(`${COINGECKO_API}/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`);
         const prices = {};
@@ -254,7 +275,7 @@ async function getPrices() {
     } catch(e) {
         console.log('CoinGecko error:', e.message);
     }
-    return mockPrices;
+    return {};
 }
 
 const symbolToCC = { 'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'BNBUSDT': 'BNB', 'SOLUSDT': 'SOL', 'XRPUSDT': 'XRP', 'ADAUSDT': 'ADA', 'DOGEUSDT': 'DOGE', 'DOTUSDT': 'DOT', 'AVAXUSDT': 'AVAX', 'MATICUSDT': 'MATIC' };
@@ -281,8 +302,25 @@ function generateMockKlines(basePrice, count) {
 
 async function getKlines(symbol, interval, limit) {
     try {
+        const intervalMap = { '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w' };
+        const binanceInterval = intervalMap[interval] || '1h';
+        const data = await fetchUrl(`${BINANCE_API}/api/v3/klines?symbol=${symbol}&interval=${binanceInterval}&limit=${limit}`);
+        if (Array.isArray(data)) {
+            return data.map(k => ({
+                time: Math.floor(k[0] / 1000),
+                open: parseFloat(k[1]),
+                high: parseFloat(k[2]),
+                low: parseFloat(k[3]),
+                close: parseFloat(k[4])
+            }));
+        }
+    } catch(e) {
+        console.log('Binance klines error:', e.message);
+    }
+    
+    try {
         const ccSymbol = symbolToCC[symbol];
-        if (!ccSymbol) return generateMockKlines(mockPrices[symbol]?.price || 10000, limit);
+        if (!ccSymbol) return [];
         const ccInterval = intervalMap[interval] || '60';
         const data = await fetchUrl(`${CRYPTOCOMPARE_API}/histohour?fsym=${ccSymbol}&tsym=USD&limit=${limit}&aggregate=1`);
         if (data && data.Data && data.Data.Data) {
@@ -294,11 +332,10 @@ async function getKlines(symbol, interval, limit) {
                 close: k.close
             }));
         }
-        return generateMockKlines(mockPrices[symbol]?.price || 10000, limit);
     } catch(e) {
-        console.log('Klines error, usando datos de respaldo');
-        return generateMockKlines(mockPrices[symbol]?.price || 10000, limit);
+        console.log('Klines error:', e.message);
     }
+    return [];
 }
 
 function sendTelegramMessage(message) {
@@ -363,6 +400,7 @@ function analyzeSignal(klines, tf) {
     if (klines.length < 60) return null;
     
     const closePrices = klines.map(k => k.close);
+    const currentPrice = closePrices[closePrices.length - 1];
     const rsi = calculateRSI(closePrices);
     const currentRSI = rsi[rsi.length - 1];
     const { macdLine, signalLine } = calculateMACD(closePrices);
@@ -377,14 +415,25 @@ function analyzeSignal(klines, tf) {
     const buyCount = directions.filter(d => d === 'buy').length;
     const sellCount = directions.filter(d => d === 'sell').length;
     
-    if (buyCount >= 2) return { action: 'BUY', confidence: 'ALTA', rsi: currentRSI, price: closePrices[closePrices.length - 1] };
-    if (sellCount >= 2) return { action: 'SELL', confidence: 'ALTA', rsi: currentRSI, price: closePrices[closePrices.length - 1] };
+    const totalIndicators = directions.filter(d => d !== 'neutral').length;
+    const confidencePercent = totalIndicators > 0 ? Math.round((buyCount >= 2 ? buyCount : sellCount) / totalIndicators * 100) : 0;
+    
+    if (buyCount >= 2) {
+        const tp = currentPrice * 1.03;
+        const sl = currentPrice * 0.98;
+        return { action: 'BUY', confidence: 'ALTA', confidencePercent, rsi: currentRSI, price: currentPrice, tp, sl };
+    }
+    if (sellCount >= 2) {
+        const tp = currentPrice * 0.97;
+        const sl = currentPrice * 1.02;
+        return { action: 'SELL', confidence: 'ALTA', confidencePercent, rsi: currentRSI, price: currentPrice, tp, sl };
+    }
     
     return null;
 }
 
 const monitoredTimeframes = ['15m', '1h', '4h'];
-const monitoredSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'MATICUSDT'];
+const monitoredSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'POLUSDT'];
 
 async function checkSignals() {
     if (!telegramChatId) return;
@@ -409,7 +458,10 @@ async function checkSignals() {
 
 ⏰ Timeframe: ${tf}
 💰 Precio: $${signal.price.toLocaleString()}
-📊 Confianza: ${signal.confidence}
+📊 Confianza: ${signal.confidence} (${signal.confidencePercent}%)
+
+🎯 TP: $${signal.tp.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/USDT (+3%)
+🛡️ SL: $${signal.sl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/USDT (-2%)
 
 • RSI: ${signal.rsi.toFixed(1)}`;
                         
