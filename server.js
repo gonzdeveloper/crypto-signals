@@ -227,31 +227,7 @@ const mockPrices = {
 const USE_MOCK_DATA = true;
 
 async function getPrices() {
-    if (USE_MOCK_DATA) {
-        return mockPrices;
-    }
-    const priceSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'MATIC', 'LINK', 'LTC', 'UNI', 'ATOM', 'ETC'];
-    try {
-        const fsyms = priceSymbols.join(',');
-        const data = await fetchUrl(`${CRYPTOCOMPARE_API}/pricemulti?fsyms=${fsyms}&tsyms=USD`);
-        const prices = {};
-        const symbolMap = { 'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'XRP': 'XRPUSDT', 'ADA': 'ADAUSDT', 'DOGE': 'DOGEUSDT', 'DOT': 'DOTUSDT', 'AVAX': 'AVAXUSDT', 'MATIC': 'MATICUSDT', 'LINK': 'LINKUSDT', 'LTC': 'LTCUSDT', 'UNI': 'UNIUSDT', 'ATOM': 'ATOMUSDT', 'ETC': 'ETCUSDT' };
-        for (const [sym, usdData] of Object.entries(data)) {
-            if (usdData.USD) {
-                const symbol = symbolMap[sym];
-                prices[symbol] = {
-                    price: usdData.USD.PRICE,
-                    change: usdData.USD.CHANGE24HOUR || 0,
-                    high: usdData.USD.HIGH24HOUR || usdData.USD.PRICE * 1.01,
-                    low: usdData.USD.LOW24HOUR || usdData.USD.PRICE * 0.99
-                };
-            }
-        }
-        return prices;
-    } catch(e) {
-        console.log('API error, usando datos de respaldo:', e.message);
-        return mockPrices;
-    }
+    return mockPrices;
 }
 
 const symbolToCC = { 'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'BNBUSDT': 'BNB', 'SOLUSDT': 'SOL', 'XRPUSDT': 'XRP', 'ADAUSDT': 'ADA', 'DOGEUSDT': 'DOGE', 'DOTUSDT': 'DOT', 'AVAXUSDT': 'AVAX', 'MATICUSDT': 'MATIC' };
