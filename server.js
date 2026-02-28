@@ -206,6 +206,8 @@ const symbolToCoinId = {
     'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
 };
 
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+
 const mockPrices = {
     'BTCUSDT': { price: 67432.50, change: 2.34, high: 68200, low: 66100 },
     'ETHUSDT': { price: 3521.80, change: 1.87, high: 3580, low: 3450 },
@@ -224,9 +226,34 @@ const mockPrices = {
     'ETCUSDT': { price: 26.50, change: 2.1, high: 27.2, low: 25.8 }
 };
 
-const USE_MOCK_DATA = true;
-
 async function getPrices() {
+    const coinIdMap = {
+        'BTCUSDT': 'bitcoin', 'ETHUSDT': 'ethereum', 'BNBUSDT': 'binancecoin',
+        'SOLUSDT': 'solana', 'XRPUSDT': 'ripple', 'ADAUSDT': 'cardano',
+        'DOGEUSDT': 'dogecoin', 'DOTUSDT': 'polkadot', 'AVAXUSDT': 'avalanche-2',
+        'MATICUSDT': 'matic-network', 'LINKUSDT': 'chainlink', 'LTCUSDT': 'litecoin',
+        'UNIUSDT': 'uniswap', 'ATOMUSDT': 'cosmos', 'ETCUSDT': 'ethereum-classic'
+    };
+    
+    try {
+        const coinIds = Object.values(coinIdMap).join(',');
+        const data = await fetchUrl(`${COINGECKO_API}/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`);
+        const prices = {};
+        for (const [symbol, coinId] of Object.entries(coinIdMap)) {
+            if (data && data[coinId]) {
+                const d = data[coinId];
+                prices[symbol] = {
+                    price: d.usd,
+                    change: d.usd_24h_change || 0,
+                    high: d.usd * 1.01,
+                    low: d.usd * 0.99
+                };
+            }
+        }
+        if (Object.keys(prices).length > 0) return prices;
+    } catch(e) {
+        console.log('CoinGecko error:', e.message);
+    }
     return mockPrices;
 }
 
