@@ -224,7 +224,12 @@ const mockPrices = {
     'ETCUSDT': { price: 26.50, change: 2.1, high: 27.2, low: 25.8 }
 };
 
+const USE_MOCK_DATA = true;
+
 async function getPrices() {
+    if (USE_MOCK_DATA) {
+        return mockPrices;
+    }
     const priceSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'MATIC', 'LINK', 'LTC', 'UNI', 'ATOM', 'ETC'];
     try {
         const fsyms = priceSymbols.join(',');
